@@ -1,5 +1,5 @@
 use std::{
-    // fs::File,
+    fs::File,
     io::{self, Read, Result as IoResult, Write}
 };
 
@@ -20,21 +20,21 @@ trait ReadAll: Read {
 
 impl<T: Read> ReadAll for T {}
 
-// fn rack(fname: String) -> IoResult<()> {
-//     let mut file = File::open(&fname)?;
-//     let mut file_rk = File::create(format!("{}.rk", &fname))?;
-//     let mut rack = Rack::new();
-//     let mut buf = vec![0; 65536];
+fn rack(fname: String) -> IoResult<()> {
+    let mut file = File::open(&fname)?;
+    let mut file_rk = File::create(format!("{}.rk", &fname))?;
+    let mut rack = Rack::new();
+    let mut buf = vec![0; 65536];
 
-//     file_rk.write_all(&HEAD)?;
-//     while let Ok(n) = file.read_all(&mut buf) {
-//         if n == 0 { break; }
-//         file_rk.write_all(&rack.proc(&buf[..n]))?;
-//     }
-//     file_rk.write_all(&rack.finish())?;
+    file_rk.write_all(&HEAD)?;
+    while let Ok(n) = file.read_all(&mut buf) {
+        if n == 0 { break; }
+        file_rk.write_all(&rack.proc(&buf[..n]))?;
+    }
+    file_rk.write_all(&rack.finish())?;
 
-//     return Ok(());
-// }
+    return Ok(());
+}
 
 fn rack_stdio() -> IoResult<()> {
     let mut stdin = io::stdin();
@@ -55,14 +55,13 @@ fn rack_stdio() -> IoResult<()> {
 }
 
 fn main() {
-    rack_stdio().unwrap();
-    // let mut args = std::env::args();
-    // if args.len() < 2 {
-    //     rack_stdio().unwrap();
-    // } else {
-    //     args.next();
-    //     for fname in args {
-    //         rack(fname).unwrap();
-    //     }
-    // }
+    let mut args = std::env::args();
+    if args.len() < 2 {
+        rack_stdio().unwrap();
+    } else {
+        args.next();
+        for fname in args {
+            rack(fname).unwrap();
+        }
+    }
 }

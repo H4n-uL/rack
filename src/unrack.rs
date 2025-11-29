@@ -1,5 +1,5 @@
 use std::{
-    // fs::File,
+    fs::File,
     io::{self, Read, Result as IoResult, Write}
 };
 
@@ -20,29 +20,29 @@ trait ReadAll: Read {
 
 impl<T: Read> ReadAll for T {}
 
-// fn unrack(mut fname: String) -> IoResult<()> {
-//     if !fname.ends_with(".rk") {
-//         fname = format!("{}.rk", fname);
-//     }
-//     let mut file = File::open(&fname)?;
-//     let mut file_rk = File::create(fname.trim_end_matches(".rk"))?;
-//     let mut unrack = Unrack::new();
-//     let mut buf = vec![0; 65536];
+fn unrack(mut fname: String) -> IoResult<()> {
+    if !fname.ends_with(".rk") {
+        fname = format!("{}.rk", fname);
+    }
+    let mut file_rk = File::open(&fname)?;
+    let mut file_unrk: File = File::create(fname.trim_end_matches(".rk"))?;
+    let mut unrack = Unrack::new();
+    let mut buf = vec![0; 65536];
 
-//     if {
-//         let mut head = [0u8; 4];
-//         file.read_all(&mut head)?;
-//         head != HEAD
-//     } {
-//         eprintln!("File {} is not a valid rack file", &fname);
-//         return Ok(());
-//     }
-//     while let Ok(n) = file_rk.read_all(&mut buf) {
-//         if n == 0 { break; }
-//         file.write_all(&unrack.proc(&buf[..n]))?;
-//     }
-//     return Ok(());
-// }
+    if {
+        let mut head = [0u8; 4];
+        file_rk.read_all(&mut head)?;
+        head != HEAD
+    } {
+        eprintln!("File {} is not a valid rack file", &fname);
+        return Ok(());
+    }
+    while let Ok(n) = file_rk.read_all(&mut buf) {
+        if n == 0 { break; }
+        file_unrk.write_all(&unrack.proc(&buf[..n]))?;
+    }
+    return Ok(());
+}
 
 fn unrack_stdio() -> IoResult<()> {
     let mut stdin = io::stdin();
@@ -69,14 +69,13 @@ fn unrack_stdio() -> IoResult<()> {
 }
 
 fn main() {
-    unrack_stdio().unwrap();
-    // let mut args = std::env::args();
-    // if args.len() < 2 {
-    //     unrack_stdio().unwrap();
-    // } else {
-    //     args.next();
-    //     for fname in args {
-    //         unrack(fname).unwrap();
-    //     }
-    // }
+    let mut args = std::env::args();
+    if args.len() < 2 {
+        unrack_stdio().unwrap();
+    } else {
+        args.next();
+        for fname in args {
+            unrack(fname).unwrap();
+        }
+    }
 }
