@@ -19,7 +19,7 @@ fn unrack(mut fname: String) -> IoResult<()> {
 
     if {
         let mut head = [0u8; 4];
-        file_rk.read(&mut head)?;
+        file_rk.read_exact(&mut head)?;
         head != HEAD
     } {
         eprintln!("File {} is not a valid rack file", &fname);
