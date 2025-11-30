@@ -1,5 +1,5 @@
 use std::{
-    fs::File,
+    fs::{File, FileTimes},
     io::{self, Read, Result as IoResult, Write}
 };
 
@@ -15,6 +15,8 @@ fn unrack(mut fname: String) -> IoResult<()> {
     let mut unrack = Unrack::new();
     let mut buf = vec![0; 65536];
 
+    let fmeta = file_rk.metadata()?;
+
     if {
         let mut head = [0u8; 4];
         file_rk.read(&mut head)?;
@@ -27,6 +29,15 @@ fn unrack(mut fname: String) -> IoResult<()> {
         if n == 0 { break; }
         file_unrk.write_all(&unrack.proc(&buf[..n]))?;
     }
+
+    file_unrk.set_permissions(
+        fmeta.permissions()
+    )?;
+    file_unrk.set_times(
+        FileTimes::new()
+            .set_accessed(fmeta.accessed()?)
+            .set_modified(fmeta.modified()?)
+    )?;
 
     return Ok(());
 }

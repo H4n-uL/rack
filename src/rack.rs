@@ -1,5 +1,5 @@
 use std::{
-    fs::File,
+    fs::{File, FileTimes},
     io::{self, Read, Result as IoResult, Write}
 };
 
@@ -12,12 +12,23 @@ fn rack(fname: String) -> IoResult<()> {
     let mut rack = Rack::new();
     let mut buf = vec![0; 65536];
 
+    let fmeta = file.metadata()?;
+
     file_rk.write_all(&HEAD)?;
     while let Ok(n) = file.read(&mut buf) {
         if n == 0 { break; }
         file_rk.write_all(&rack.proc(&buf[..n]))?;
     }
     file_rk.write_all(&rack.finish())?;
+
+    file_rk.set_permissions(
+        fmeta.permissions()
+    )?;
+    file_rk.set_times(
+        FileTimes::new()
+            .set_accessed(fmeta.accessed()?)
+            .set_modified(fmeta.modified()?)
+    )?;
 
     return Ok(());
 }
