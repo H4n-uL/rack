@@ -1,5 +1,5 @@
 use std::{
-    fs::{File, FileTimes},
+    fs::{File, FileTimes, remove_file},
     io::{self, Read, Result as IoResult, Write}
 };
 
@@ -15,29 +15,45 @@ fn unrack(mut fname: String) -> IoResult<()> {
     let mut unrack = Unrack::new();
     let mut buf = vec![0; 65536];
 
-    let fmeta = file_rk.metadata()?;
+    let res = || -> IoResult<()> {
+        let fmeta = file_rk.metadata()?;
+        if {
+            let mut head = [0u8; HEAD.len()];
+            file_rk.read_exact(&mut head)?;
+            head != HEAD
+        } {
+            eprintln!("File {} is not a valid rack file", &fname);
+            return Ok(());
+        }
+        while let Ok(n) = file_rk.read(&mut buf) {
+            if n == 0 { break; }
+            file_unrk.write_all(&unrack.proc(&buf[..n]))?;
+        }
 
-    if {
-        let mut head = [0u8; 4];
-        file_rk.read_exact(&mut head)?;
-        head != HEAD
-    } {
-        eprintln!("File {} is not a valid rack file", &fname);
+        file_unrk.set_permissions(
+            fmeta.permissions()
+        )?;
+        file_unrk.set_times(
+            FileTimes::new()
+                .set_accessed(fmeta.accessed()?)
+                .set_modified(fmeta.modified()?)
+        )?;
+
         return Ok(());
-    }
-    while let Ok(n) = file_rk.read(&mut buf) {
-        if n == 0 { break; }
-        file_unrk.write_all(&unrack.proc(&buf[..n]))?;
-    }
+    }();
 
-    file_unrk.set_permissions(
-        fmeta.permissions()
-    )?;
-    file_unrk.set_times(
-        FileTimes::new()
-            .set_accessed(fmeta.accessed()?)
-            .set_modified(fmeta.modified()?)
-    )?;
+    if res.is_ok() {
+        drop(file_rk);
+        if let Err(e) = remove_file(&fname) {
+            eprintln!("rm {} failed: {}", &fname, e);
+        }
+    } else {
+        eprintln!("rack {} failed: {}", &fname, res.err().unwrap());
+        drop(file_unrk);
+        if let Err(e) = remove_file(fname.trim_end_matches(".rk")) {
+            eprintln!("rm {} failed: {}", fname.trim_end_matches(".rk"), e);
+        }
+    }
 
     return Ok(());
 }
@@ -49,7 +65,7 @@ fn unrack_stdio() -> IoResult<()> {
     let mut buf = vec![0; 65536];
 
     if {
-        let mut head = [0u8; 4];
+        let mut head = [0u8; HEAD.len()];
         stdin.read(&mut head)?;
         head != HEAD
     } {

@@ -1,5 +1,5 @@
 use std::{
-    fs::{File, FileTimes},
+    fs::{File, FileTimes, remove_file},
     io::{self, Read, Result as IoResult, Write}
 };
 
@@ -12,23 +12,43 @@ fn rack(fname: String) -> IoResult<()> {
     let mut rack = Rack::new();
     let mut buf = vec![0; 65536];
 
-    let fmeta = file.metadata()?;
+    let res = || -> IoResult<()> {
+        let fmeta = file.metadata()?;
 
-    file_rk.write_all(&HEAD)?;
-    while let Ok(n) = file.read(&mut buf) {
-        if n == 0 { break; }
-        file_rk.write_all(&rack.proc(&buf[..n]))?;
+        file_rk.write_all(&HEAD)?;
+        loop {
+            match file.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => file_rk.write_all(&rack.proc(&buf[..n]))?,
+                Err(e) => return Err(e),
+            }
+        }
+        file_rk.write_all(&rack.finish())?;
+
+        file_rk.set_permissions(
+            fmeta.permissions()
+        )?;
+        file_rk.set_times(
+            FileTimes::new()
+                .set_accessed(fmeta.accessed()?)
+                .set_modified(fmeta.modified()?)
+        )?;
+
+        return Ok(());
+    }();
+
+    if res.is_ok() {
+        drop(file);
+        if let Err(e) = remove_file(&fname) {
+            eprintln!("rm {} failed: {}", &fname, e);
+        }
+    } else {
+        eprintln!("rack {} failed: {}", &fname, res.err().unwrap());
+        drop(file_rk);
+        if let Err(e) = remove_file(format!("{}.rk", &fname)) {
+            eprintln!("rm {}.rk failed: {}", &fname, e);
+        }
     }
-    file_rk.write_all(&rack.finish())?;
-
-    file_rk.set_permissions(
-        fmeta.permissions()
-    )?;
-    file_rk.set_times(
-        FileTimes::new()
-            .set_accessed(fmeta.accessed()?)
-            .set_modified(fmeta.modified()?)
-    )?;
 
     return Ok(());
 }
