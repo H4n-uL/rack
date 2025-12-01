@@ -7,12 +7,12 @@ use rack::*;
 const HEAD: [u8; 4] = [0x1f, 0xad, 0xa7, 0x24];
 
 fn rack(fname: String) -> IoResult<()> {
-    let mut file = File::open(&fname)?;
-    let mut file_rk = File::create(format!("{}.rk", &fname))?;
     let mut rack = Rack::new();
     let mut buf = vec![0; 65536];
 
     let res = || -> IoResult<()> {
+        let mut file = File::open(&fname)?;
+        let mut file_rk = File::create(format!("{}.rk", &fname))?;
         let fmeta = file.metadata()?;
 
         file_rk.write_all(&HEAD)?;
@@ -38,13 +38,11 @@ fn rack(fname: String) -> IoResult<()> {
     }();
 
     if res.is_ok() {
-        drop(file);
         if let Err(e) = remove_file(&fname) {
             eprintln!("rm {} failed: {}", &fname, e);
         }
     } else {
         eprintln!("rack {} failed: {}", &fname, res.err().unwrap());
-        drop(file_rk);
         if let Err(e) = remove_file(format!("{}.rk", &fname)) {
             eprintln!("rm {}.rk failed: {}", &fname, e);
         }

@@ -10,12 +10,12 @@ fn unrack(mut fname: String) -> IoResult<()> {
     if !fname.ends_with(".rk") {
         fname = format!("{}.rk", fname);
     }
-    let mut file_rk = File::open(&fname)?;
-    let mut file_unrk: File = File::create(fname.trim_end_matches(".rk"))?;
     let mut unrack = Unrack::new();
     let mut buf = vec![0; 65536];
 
     let res = || -> IoResult<()> {
+        let mut file_rk = File::open(&fname)?;
+        let mut file_unrk: File = File::create(fname.trim_end_matches(".rk"))?;
         let fmeta = file_rk.metadata()?;
         if {
             let mut head = [0u8; HEAD.len()];
@@ -43,13 +43,11 @@ fn unrack(mut fname: String) -> IoResult<()> {
     }();
 
     if res.is_ok() {
-        drop(file_rk);
         if let Err(e) = remove_file(&fname) {
             eprintln!("rm {} failed: {}", &fname, e);
         }
     } else {
         eprintln!("rack {} failed: {}", &fname, res.err().unwrap());
-        drop(file_unrk);
         if let Err(e) = remove_file(fname.trim_end_matches(".rk")) {
             eprintln!("rm {} failed: {}", fname.trim_end_matches(".rk"), e);
         }
