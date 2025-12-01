@@ -1,6 +1,6 @@
 use std::{
     fs::{File, FileTimes, remove_file},
-    io::{self, Read, Result as IoResult, Write}
+    io::{self, Read, Result as IoResult, Write}, process::ExitCode
 };
 
 use rack::*;
@@ -10,12 +10,12 @@ fn unrack(mut fname: String) -> IoResult<()> {
     if !fname.ends_with(".rk") {
         fname = format!("{}.rk", fname);
     }
+    let mut file_rk = File::open(&fname)?;
+    let mut file_unrk: File = File::create(fname.trim_end_matches(".rk"))?;
     let mut unrack = Unrack::new();
     let mut buf = vec![0; 65536];
 
     let res = || -> IoResult<()> {
-        let mut file_rk = File::open(&fname)?;
-        let mut file_unrk: File = File::create(fname.trim_end_matches(".rk"))?;
         let fmeta = file_rk.metadata()?;
         if {
             let mut head = [0u8; HEAD.len()];
@@ -47,13 +47,12 @@ fn unrack(mut fname: String) -> IoResult<()> {
             eprintln!("rm {} failed: {}", &fname, e);
         }
     } else {
-        eprintln!("rack {} failed: {}", &fname, res.err().unwrap());
         if let Err(e) = remove_file(fname.trim_end_matches(".rk")) {
             eprintln!("rm {} failed: {}", fname.trim_end_matches(".rk"), e);
         }
     }
 
-    return Ok(());
+    return res;
 }
 
 fn unrack_stdio() -> IoResult<()> {
@@ -80,14 +79,20 @@ fn unrack_stdio() -> IoResult<()> {
     return Ok(());
 }
 
-fn main() {
+fn main() -> ExitCode {
     let mut args = std::env::args();
+    let mut err = 0;
     if args.len() < 2 {
         unrack_stdio().unwrap();
     } else {
-        args.next();
+        let exec = args.next().unwrap();
         for fname in args {
-            unrack(fname).unwrap();
+            if let Err(e) = unrack(fname.clone()) {
+                eprintln!("{}: {} failed - {}", &exec, &fname, e);
+                err += 1;
+            }
         }
     }
+
+    return ExitCode::from(err as u8);
 }

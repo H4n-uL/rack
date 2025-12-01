@@ -1,18 +1,18 @@
 use std::{
     fs::{File, FileTimes, remove_file},
-    io::{self, Read, Result as IoResult, Write}
+    io::{self, Read, Result as IoResult, Write}, process::ExitCode
 };
 
 use rack::*;
 const HEAD: [u8; 4] = [0x1f, 0xad, 0xa7, 0x24];
 
 fn rack(fname: String) -> IoResult<()> {
+    let mut file = File::open(&fname)?;
+    let mut file_rk = File::create(format!("{}.rk", &fname))?;
     let mut rack = Rack::new();
     let mut buf = vec![0; 65536];
 
     let res = || -> IoResult<()> {
-        let mut file = File::open(&fname)?;
-        let mut file_rk = File::create(format!("{}.rk", &fname))?;
         let fmeta = file.metadata()?;
 
         file_rk.write_all(&HEAD)?;
@@ -42,13 +42,12 @@ fn rack(fname: String) -> IoResult<()> {
             eprintln!("rm {} failed: {}", &fname, e);
         }
     } else {
-        eprintln!("rack {} failed: {}", &fname, res.err().unwrap());
         if let Err(e) = remove_file(format!("{}.rk", &fname)) {
             eprintln!("rm {}.rk failed: {}", &fname, e);
         }
     }
 
-    return Ok(());
+    return res;
 }
 
 fn rack_stdio() -> IoResult<()> {
@@ -69,14 +68,20 @@ fn rack_stdio() -> IoResult<()> {
     return Ok(());
 }
 
-fn main() {
+fn main() -> ExitCode {
     let mut args = std::env::args();
+    let mut err = 0;
     if args.len() < 2 {
         rack_stdio().unwrap();
     } else {
-        args.next();
+        let exec = args.next().unwrap();
         for fname in args {
-            rack(fname).unwrap();
+            if let Err(e) = rack(fname.clone()) {
+                eprintln!("{}: {} failed - {}", &exec, &fname, e);
+                err += 1;
+            }
         }
     }
+
+    return ExitCode::from(err as u8);
 }
