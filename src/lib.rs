@@ -2,7 +2,7 @@
 //!
 //! Crafted by HaƞuL in 2025
 //! Description: Range coder for stream compression
-//! Licence: Non-assertion
+//! Licence: Non-assertion pledge
 
 #![no_std]
 
